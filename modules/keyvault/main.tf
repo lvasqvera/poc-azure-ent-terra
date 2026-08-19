@@ -62,6 +62,15 @@ resource "azurerm_role_assignment" "pipeline_secrets_officer" {
   scope                = azurerm_key_vault.main.id
   role_definition_name = "Key Vault Secrets Officer"
   principal_id         = var.pipeline_principal_id
+
+  # La API de Microsoft.Authorization devuelve el scope de un role
+  # assignment normalizado en minusculas, distinto de como Terraform lo
+  # genera (azurerm_key_vault.main.id, con el casing real del resource
+  # group). Sin este ignore_changes, cada apply detecta ese "drift" y
+  # fuerza destruir y recrear el role assignment innecesariamente.
+  lifecycle {
+    ignore_changes = [scope]
+  }
 }
 
 # El RBAC de Azure es eventualmente consistente: sin esta espera, el primer
