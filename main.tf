@@ -76,17 +76,20 @@ module "network" {
 # PROYECTO (distinto del de bootstrap) con RBAC, y le copia adentro el
 # mismo secreto ssh-public-key leído arriba — queda versionado/auditado
 # junto con el resto de los recursos del POC. pipeline_principal_id (si se
-# pasa) hace que el pipeline reciba permiso de escritura sobre este vault.
+# pasa) hace que el pipeline reciba permiso de escritura sobre este vault;
+# local_operator_principal_id hace lo mismo para quien corra Terraform a
+# mano (evita el 403 al leer/escribir el secreto en cada plan/apply local).
 module "keyvault" {
   source = "./modules/keyvault"
 
-  location              = var.location
-  name_prefix           = var.name_prefix
-  resource_group_name   = azurerm_resource_group.main.name
-  tenant_id             = data.azurerm_client_config.current.tenant_id
-  ssh_public_key        = data.azurerm_key_vault_secret.ssh_public_key.value
-  pipeline_principal_id = var.pipeline_principal_id
-  tags                  = local.tags
+  location                    = var.location
+  name_prefix                 = var.name_prefix
+  resource_group_name         = azurerm_resource_group.main.name
+  tenant_id                   = data.azurerm_client_config.current.tenant_id
+  ssh_public_key              = data.azurerm_key_vault_secret.ssh_public_key.value
+  pipeline_principal_id       = var.pipeline_principal_id
+  local_operator_principal_id = var.local_operator_principal_id
+  tags                        = local.tags
 }
 
 # Módulo compute (./modules/compute/main.tf): crea la VM Linux (Ubuntu),

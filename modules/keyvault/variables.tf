@@ -42,6 +42,15 @@ variable "pipeline_principal_id" {
   default     = ""
 }
 
+# Consumida por azurerm_role_assignment.local_operator_secrets_officer.
+# Viene de var.local_operator_principal_id en la raíz — pasala solo si vas
+# a correr plan/apply/destroy vos mismo, fuera del pipeline.
+variable "local_operator_principal_id" {
+  description = "Object ID de quien corre Terraform localmente (tu usuario, no un SP). Vacío = no se crea el role assignment \"Key Vault Secrets Officer\" para vos, y un plan/apply/destroy local puede fallar leyendo el secreto ssh-public-key."
+  type        = string
+  default     = ""
+}
+
 variable "tags" {
   description = "Tags aplicados a los recursos"
   type        = map(string)

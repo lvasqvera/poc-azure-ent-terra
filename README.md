@@ -62,24 +62,22 @@ terraform destroy \
   -var="ssh_source_ip=<tu-ip>/32" \
   -var="bootstrap_resource_group_name=<bootstrap-rg>" \
   -var="bootstrap_key_vault_name=<bootstrap-kv>" \
-  -var="pipeline_principal_id=<object-id-del-sp>"
+  -var="pipeline_principal_id=<object-id-del-sp>" \
+  -var="local_operator_principal_id=$(az ad signed-in-user show --query id -o tsv)"
 ```
 
 Purga el Key Vault del proyecto y borra el Resource Group aunque tenga
 recursos sueltos (ver `providers.tf`). **No** toca el backend de state ni el
 Key Vault de bootstrap — viven fuera de este state a propósito.
 
-> **Nota:** para correr `plan`/`destroy` desde tu propia máquina (no desde el
-> pipeline) tu usuario necesita el rol **Key Vault Secrets Officer** sobre el
-> Key Vault *del proyecto* — no solo sobre el de bootstrap — porque Terraform
-> refresca el secreto `ssh-public-key` ahí antes de poder planificar. Si no
-> lo tenés (típicamente porque hasta ahora solo aplicó el pipeline), otorgátelo:
-> ```bash
-> az role assignment create \
->   --assignee "$(az ad signed-in-user show --query id -o tsv)" \
->   --role "Key Vault Secrets Officer" \
->   --scope "$(az keyvault show --name <nombre-kv-del-proyecto> --query id -o tsv)"
-> ```
+> **Nota:** `local_operator_principal_id` es tu propio Object ID (no un SP).
+> Pasalo en **cualquier** `plan`/`apply`/`destroy` que corras desde tu
+> máquina, no solo en destroy — Terraform necesita leer/escribir el secreto
+> `ssh-public-key` del Key Vault del proyecto para poder planificar
+> cualquier cambio, y ese Key Vault tiene nombre random: cada vez que se
+> recrea (ej. después de un destroy), el permiso hay que volver a
+> otorgarlo. Con esta variable, Terraform lo gestiona solo en cada apply —
+> sin ella, un plan/destroy local puede fallar con 403 `ForbiddenByRbac`.
 
 ## Prerrequisitos
 
@@ -144,6 +142,7 @@ vault de bootstrap.
 | `bootstrap_resource_group_name` | Sí | RG del Key Vault de bootstrap. |
 | `bootstrap_key_vault_name` | Sí | Nombre del Key Vault de bootstrap. |
 | `pipeline_principal_id` | No | Object ID del Service Principal OIDC del pipeline. Vacío = no se crea el role assignment "Key Vault Secrets Officer" en el Key Vault del proyecto — necesario porque es el propio pipeline quien escribe el secreto `ssh-public-key` ahí en cada apply, no solo lo lee. |
+| `local_operator_principal_id` | No | Tu propio Object ID (`az ad signed-in-user show --query id -o tsv`), no un SP. Mismo motivo que `pipeline_principal_id` pero para vos: pasalo en cualquier plan/apply/destroy que corras localmente, o vas a pegar contra un 403 al leer/escribir el secreto en el Key Vault del proyecto. |
 | `location`, `name_prefix`, `resource_group_name`, `vm_size`, `admin_username`, `budget_amount`, `budget_threshold_percentage`, `contact_emails` | No | Tienen default, ver [variables.tf](variables.tf). |
 
 Pasá los valores requeridos con `-var`, un `*.tfvars` (ignorado por git) o
@@ -168,7 +167,8 @@ terraform init
 terraform plan \
   -var="ssh_source_ip=<tu-ip>/32" \
   -var="bootstrap_resource_group_name=<bootstrap-rg>" \
-  -var="bootstrap_key_vault_name=<bootstrap-kv>"
+  -var="bootstrap_key_vault_name=<bootstrap-kv>" \
+  -var="local_operator_principal_id=$(az ad signed-in-user show --query id -o tsv)"
 terraform apply <mismas -var>
 ```
 

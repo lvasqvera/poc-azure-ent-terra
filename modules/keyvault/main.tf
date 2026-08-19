@@ -80,13 +80,35 @@ resource "azurerm_role_assignment" "pipeline_secrets_officer" {
   }
 }
 
+# Mismo permiso que arriba, pero para quien corre Terraform a mano fuera
+# del pipeline (tu usuario). Sin esto, cada vez que el Key Vault se
+# recrea (nombre random → un destroy+apply le da uno nuevo), un plan/apply/
+# destroy local vuelve a fallar con 403 ForbiddenByRbac al leer/escribir el
+# secreto — el permiso quedaba manual y atado al vault viejo, que ya no
+# existe. Pasá tu Object ID (az ad signed-in-user show --query id -o tsv)
+# como local_operator_principal_id para que esto se auto-repare en cada
+# apply, igual que ya pasa con el pipeline.
+resource "azurerm_role_assignment" "local_operator_secrets_officer" {
+  count                = var.local_operator_principal_id != "" ? 1 : 0
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = var.local_operator_principal_id
+
+  lifecycle {
+    ignore_changes = [scope]
+  }
+}
+
 # El RBAC de Azure es eventualmente consistente: sin esta espera, el primer
-# apply que crea el vault y el role assignment de arriba en la misma
-# corrida falla intermitentemente al escribir el secreto justo después
+# apply que crea el vault y algún role assignment de arriba en la misma
+# corrida falla intermitentemente al leer/escribir el secreto justo después
 # (403 ForbiddenByRbac, la propagación todavía no llegó al plano de datos).
 resource "time_sleep" "kv_rbac_propagation" {
-  count           = var.pipeline_principal_id != "" ? 1 : 0
-  depends_on      = [azurerm_role_assignment.pipeline_secrets_officer]
+  count = var.pipeline_principal_id != "" || var.local_operator_principal_id != "" ? 1 : 0
+  depends_on = [
+    azurerm_role_assignment.pipeline_secrets_officer,
+    azurerm_role_assignment.local_operator_secrets_officer,
+  ]
   create_duration = "90s"
 }
 

@@ -71,3 +71,9 @@ variable "pipeline_principal_id" {
   type        = string
   default     = ""
 }
+
+variable "local_operator_principal_id" {
+  description = "Object ID de tu usuario (az ad signed-in-user show --query id -o tsv), NO el Application/Client ID. Pasalo cuando vayas a correr plan/apply/destroy localmente (fuera del pipeline): sin esto, cada vez que el Key Vault del proyecto se recrea (nombre random) hay que volver a otorgarte el permiso a mano. Vacío = no se crea ese role assignment."
+  type        = string
+  default     = ""
+}
