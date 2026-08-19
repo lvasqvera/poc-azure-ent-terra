@@ -28,6 +28,59 @@ La SSH public key **no se genera en este repo**: se lee desde un Key Vault de
 bootstrap pre-existente (fuera de este state) y se copia como secreto al Key
 Vault del proyecto.
 
+## Levantar y eliminar el proyecto
+
+Referencia rápida para el uso diario, asumiendo que el bootstrap (backend de
+state + Key Vault de bootstrap, ver más abajo) y el pipeline (secrets/vars en
+GitHub, ver [CI/CD](#cicd-github-actions)) ya están configurados una vez.
+
+### Levantar
+
+El despliegue real corre por el pipeline, no a mano. Si el ambiente no está
+levantado (o querés aplicar un cambio), alcanza con mergear/pushear a
+`master`:
+
+```bash
+git add -A
+git commit -m "..."
+git push origin master
+```
+
+Eso dispara [.github/workflows/terraform.yml](.github/workflows/terraform.yml),
+que corre `terraform plan` + `terraform apply` autenticado por OIDC. Podés
+seguir el progreso con `gh run watch -R lvasqvera/poc-azure-ent-terra` o en la
+pestaña *Actions* del repo.
+
+### Eliminar
+
+El backend remoto no impide `terraform destroy` — al contrario, es lo que lo
+hace seguro (mismo state, mismo lock que usa el pipeline). Se corre local,
+con las mismas variables requeridas que el `apply`:
+
+```bash
+terraform destroy \
+  -var="ssh_source_ip=<tu-ip>/32" \
+  -var="bootstrap_resource_group_name=<bootstrap-rg>" \
+  -var="bootstrap_key_vault_name=<bootstrap-kv>" \
+  -var="pipeline_principal_id=<object-id-del-sp>"
+```
+
+Purga el Key Vault del proyecto y borra el Resource Group aunque tenga
+recursos sueltos (ver `providers.tf`). **No** toca el backend de state ni el
+Key Vault de bootstrap — viven fuera de este state a propósito.
+
+> **Nota:** para correr `plan`/`destroy` desde tu propia máquina (no desde el
+> pipeline) tu usuario necesita el rol **Key Vault Secrets Officer** sobre el
+> Key Vault *del proyecto* — no solo sobre el de bootstrap — porque Terraform
+> refresca el secreto `ssh-public-key` ahí antes de poder planificar. Si no
+> lo tenés (típicamente porque hasta ahora solo aplicó el pipeline), otorgátelo:
+> ```bash
+> az role assignment create \
+>   --assignee "$(az ad signed-in-user show --query id -o tsv)" \
+>   --role "Key Vault Secrets Officer" \
+>   --scope "$(az keyvault show --name <nombre-kv-del-proyecto> --query id -o tsv)"
+> ```
+
 ## Prerrequisitos
 
 - Terraform >= 1.9
