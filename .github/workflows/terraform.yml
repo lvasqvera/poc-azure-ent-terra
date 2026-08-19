@@ -1,0 +1,56 @@
+name: Terraform
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_USE_OIDC: "true"
+  TF_VAR_ssh_source_ip: ${{ secrets.TF_VAR_SSH_SOURCE_IP }}
+  TF_VAR_bootstrap_resource_group_name: ${{ vars.TF_VAR_BOOTSTRAP_RESOURCE_GROUP_NAME }}
+  TF_VAR_bootstrap_key_vault_name: ${{ vars.TF_VAR_BOOTSTRAP_KEY_VAULT_NAME }}
+  TF_VAR_pipeline_principal_id: ${{ vars.TF_VAR_PIPELINE_PRINCIPAL_ID }}
+
+jobs:
+  terraform:
+    name: Plan${{ github.ref == 'refs/heads/master' && github.event_name == 'push' && ' + Apply' || '' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.0"
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: terraform plan -input=false -out=tfplan
+
+      # Solo aplica en push directo a master (no en Pull Requests).
+      - name: Terraform apply
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        run: terraform apply -input=false -auto-approve tfplan
