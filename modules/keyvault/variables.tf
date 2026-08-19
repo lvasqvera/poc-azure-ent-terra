@@ -25,7 +25,7 @@ variable "ssh_public_key" {
 }
 
 variable "pipeline_principal_id" {
-  description = "Object ID del Service Principal del pipeline. Vacío = no se crea el role assignment."
+  description = "Object ID del Service Principal del pipeline. Vacío = no se crea el role assignment \"Key Vault Secrets Officer\"."
   type        = string
   default     = ""
 }

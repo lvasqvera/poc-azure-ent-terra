@@ -6,6 +6,9 @@ terraform {
     random = {
       source = "hashicorp/random"
     }
+    time = {
+      source = "hashicorp/time"
+    }
   }
 }
 
@@ -48,18 +51,34 @@ resource "azurerm_key_vault" "main" {
   public_network_access_enabled = true
 }
 
+
+# El pipeline necesita permiso de ESCRITURA (no solo lectura) sobre este
+# vault puntual: es él mismo quien crea/actualiza el secreto de abajo en
+# cada apply (Terraform reconcilia azurerm_key_vault_secret como cualquier
+# otro recurso, no es un valor de solo-lectura). Sigue acotado a este vault
+# puntual, nada de administración del vault ni acceso a otros recursos.
+resource "azurerm_role_assignment" "pipeline_secrets_officer" {
+  count                = var.pipeline_principal_id != "" ? 1 : 0
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = var.pipeline_principal_id
+}
+
+# El RBAC de Azure es eventualmente consistente: sin esta espera, el primer
+# apply que crea el vault y el role assignment de arriba en la misma
+# corrida falla intermitentemente al escribir el secreto justo después
+# (403 ForbiddenByRbac, la propagación todavía no llegó al plano de datos).
+resource "time_sleep" "kv_rbac_propagation" {
+  count           = var.pipeline_principal_id != "" ? 1 : 0
+  depends_on      = [azurerm_role_assignment.pipeline_secrets_officer]
+  create_duration = "90s"
+}
+
 resource "azurerm_key_vault_secret" "ssh_public_key" {
   name         = "ssh-public-key"
   value        = var.ssh_public_key
   key_vault_id = azurerm_key_vault.main.id
   content_type = "ssh-public-key"
-}
 
-# Permiso mínimo: el pipeline solo puede LEER secretos de este vault
-# puntual, no administrar el vault ni acceder a otros recursos.
-resource "azurerm_role_assignment" "pipeline_secrets_user" {
-  count                = var.pipeline_principal_id != "" ? 1 : 0
-  scope                = azurerm_key_vault.main.id
-  role_definition_name = "Key Vault Secrets User"
-  principal_id         = var.pipeline_principal_id
+  depends_on = [time_sleep.kv_rbac_propagation]
 }

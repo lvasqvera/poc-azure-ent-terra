@@ -62,7 +62,7 @@ variable "contact_emails" {
 }
 
 variable "pipeline_principal_id" {
-  description = "Object ID (principalId) del Service Principal OIDC del pipeline. Vacío = no se crea el role assignment \"Key Vault Secrets User\" en el Key Vault del proyecto."
+  description = "Object ID (principalId) del Service Principal OIDC del pipeline. Vacío = no se crea el role assignment \"Key Vault Secrets Officer\" en el Key Vault del proyecto (y el propio pipeline no podría escribir el secreto ssh-public-key ahí)."
   type        = string
   default     = ""
 }

@@ -90,7 +90,7 @@ vault de bootstrap.
 | `ssh_source_ip` | Sí | CIDR (ej. `203.0.113.10/32`) permitido para SSH. Único valor que hay que completar manualmente antes de desplegar. |
 | `bootstrap_resource_group_name` | Sí | RG del Key Vault de bootstrap. |
 | `bootstrap_key_vault_name` | Sí | Nombre del Key Vault de bootstrap. |
-| `pipeline_principal_id` | No | Object ID del Service Principal OIDC del pipeline. Vacío = no se crea el role assignment "Key Vault Secrets User" en el Key Vault del proyecto (necesario para que el pipeline pueda leer el secreto en corridas futuras). |
+| `pipeline_principal_id` | No | Object ID del Service Principal OIDC del pipeline. Vacío = no se crea el role assignment "Key Vault Secrets Officer" en el Key Vault del proyecto — necesario porque es el propio pipeline quien escribe el secreto `ssh-public-key` ahí en cada apply, no solo lo lee. |
 | `location`, `name_prefix`, `resource_group_name`, `vm_size`, `admin_username`, `budget_amount`, `budget_threshold_percentage`, `contact_emails` | No | Tienen default, ver [variables.tf](variables.tf). |
 
 Pasá los valores requeridos con `-var`, un `*.tfvars` (ignorado por git) o
