@@ -1,3 +1,8 @@
+# Este es el punto de entrada de TODAS las variables del proyecto: lo que
+# no tiene "default" hay que pasarlo con -var/-var-file/TF_VAR_* al correr
+# plan/apply/destroy (ver README > Variables). Cada variable se reenvía
+# desde acá hacia el módulo que la necesita (ver main.tf).
+
 variable "location" {
   description = "Región de Azure para todos los recursos"
   type        = string

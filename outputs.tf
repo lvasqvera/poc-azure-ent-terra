@@ -1,3 +1,8 @@
+# Estos 4 valores son los que se imprimen al final de un `terraform apply`
+# (y se pueden volver a ver con `terraform output`). Cada uno solo
+# reenvía un output que ya expone el módulo correspondiente — no calculan
+# nada nuevo acá.
+
 output "resource_group_name" {
   description = "Nombre del Resource Group creado"
   value       = azurerm_resource_group.main.name

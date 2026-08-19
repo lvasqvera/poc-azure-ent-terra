@@ -1,9 +1,22 @@
 #cloud-config
+# Script de primer arranque de la VM (lo inyecta azurerm_linux_virtual_
+# machine.main via custom_data, en modules/compute/main.tf). Azure lo pasa
+# al agente de cloud-init de la imagen Ubuntu, que lo ejecuta una sola vez.
+
+# Refresca el índice de paquetes (equivalente a "apt update") pero NO
+# actualiza los paquetes ya instalados del sistema (equivalente a "apt
+# upgrade") — eso evita que el boot tarde de más instalando actualizaciones
+# del SO en un POC.
 package_update: true
 package_upgrade: false
+
+# Único paquete que necesita este POC: el servidor web que responde en el
+# puerto 80 (abierto en el NSG del módulo network).
 packages:
   - nginx
 
+# nginx se instala pero no arranca solo ni queda habilitado al reiniciar
+# por defecto en todas las imágenes — estos dos comandos lo garantizan.
 runcmd:
   - systemctl enable nginx
   - systemctl start nginx

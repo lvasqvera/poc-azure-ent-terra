@@ -1,6 +1,10 @@
 terraform {
   required_version = ">= 1.9.0"
 
+  # Los 3 "providers" (plugins) que usa este proyecto: azurerm crea los
+  # recursos de Azure en sí; random genera el sufijo único del nombre del
+  # Key Vault (modules/keyvault); time da el time_sleep que espera la
+  # propagación de RBAC (también en modules/keyvault).
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"

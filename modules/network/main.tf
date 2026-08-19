@@ -1,3 +1,6 @@
+# NSG (firewall a nivel de subnet): decide qué tráfico entrante se permite.
+# Se asocia a la subnet más abajo (azurerm_subnet_network_security_group_
+# association). Las reglas se evalúan por "priority" (menor = primero).
 resource "azurerm_network_security_group" "main" {
   name                = "${var.name_prefix}-nsg"
   location            = var.location
@@ -45,6 +48,9 @@ resource "azurerm_network_security_group" "main" {
   }
 }
 
+# Red virtual del proyecto: un único espacio de direcciones privado
+# (10.0.0.0/16) que contiene la subnet de abajo. Es el "contenedor" de red;
+# no tiene reglas de tráfico propias (eso lo maneja el NSG).
 resource "azurerm_virtual_network" "main" {
   name                = "${var.name_prefix}-vnet"
   location            = var.location
@@ -53,6 +59,7 @@ resource "azurerm_virtual_network" "main" {
   tags                = var.tags
 }
 
+# Subred dentro de la VNet (10.0.1.0/24) donde vive la NIC de la VM.
 resource "azurerm_subnet" "public" {
   name                 = "${var.name_prefix}-subnet-public"
   resource_group_name  = var.resource_group_name
@@ -60,11 +67,17 @@ resource "azurerm_subnet" "public" {
   address_prefixes     = ["10.0.1.0/24"]
 }
 
+# Sin esta asociación explícita, el NSG de arriba quedaría creado pero
+# "desconectado" — no filtraría nada. Este recurso es el que efectivamente
+# aplica las reglas del NSG a todo lo que esté en la subnet.
 resource "azurerm_subnet_network_security_group_association" "public" {
   subnet_id                 = azurerm_subnet.public.id
   network_security_group_id = azurerm_network_security_group.main.id
 }
 
+# IP pública fija (Static, no cambia si se reinicia la VM) que se asigna a
+# la NIC de abajo. SKU "Standard" porque es el único compatible con
+# allocation_method "Static" en un NIC (el SKU "Basic" está deprecado).
 resource "azurerm_public_ip" "main" {
   name                = "${var.name_prefix}-pip"
   location            = var.location
@@ -74,6 +87,10 @@ resource "azurerm_public_ip" "main" {
   tags                = var.tags
 }
 
+# NIC (tarjeta de red): lo que efectivamente conecta la VM (creada en el
+# módulo compute, ver network_interface_id) a la subnet y a la IP pública.
+# El módulo compute no crea su propia NIC — la recibe como variable
+# (network_interface_id = module.network.nic_id en main.tf de la raíz).
 resource "azurerm_network_interface" "main" {
   name                = "${var.name_prefix}-nic"
   location            = var.location

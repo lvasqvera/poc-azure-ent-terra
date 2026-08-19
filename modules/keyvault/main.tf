@@ -18,6 +18,9 @@ resource "random_id" "kv_suffix" {
   byte_length = 4
 }
 
+# Arma el nombre final del vault combinando name_prefix + "kv" + el sufijo
+# random de arriba, cortado a 24 caracteres (límite de Azure). Se usa en
+# azurerm_key_vault.main.name, justo abajo.
 locals {
   key_vault_name = substr(
     "${replace(var.name_prefix, "-", "")}kv${random_id.kv_suffix.hex}",
@@ -26,6 +29,10 @@ locals {
   )
 }
 
+# El Key Vault DEL PROYECTO (no el de bootstrap — ese vive fuera de este
+# state, ver README). Guarda una copia gestionada de la SSH public key
+# (ver azurerm_key_vault_secret más abajo) y queda versionado/borrado junto
+# con el resto de los recursos del POC.
 resource "azurerm_key_vault" "main" {
   name                = local.key_vault_name
   location            = var.location
@@ -83,6 +90,10 @@ resource "time_sleep" "kv_rbac_propagation" {
   create_duration = "90s"
 }
 
+# La copia gestionada del secreto: su valor viene de var.ssh_public_key,
+# que en main.tf (raíz) es data.azurerm_key_vault_secret.ssh_public_key.value
+# — o sea, lo que ya estaba en el Key Vault de bootstrap. No lo genera este
+# módulo, solo lo re-guarda acá con RBAC y versionado propios.
 resource "azurerm_key_vault_secret" "ssh_public_key" {
   name         = "ssh-public-key"
   value        = var.ssh_public_key
