@@ -17,3 +17,8 @@ terraform.rc
 # El backend es remoto (ver providers.tf), estos archivos no deberian existir
 # en el repo, pero se ignoran por si alguien corre terraform localmente sin
 # backend remoto.
+
+# Notas locales de Claude Code para retomar el proyecto rapido (IDs de
+# suscripcion/tenant/SP, gotchas ya resueltos). Nunca debe llegar al repo,
+# publico ni privado: es contexto operativo, no documentacion del proyecto.
+CLAUDE.md
